@@ -133,38 +133,6 @@ if (PORTABLE)
     add_definitions(-DPORTABLE)
 endif()
 
-if (APPLE)
-    # Copy icon into the bundle
-    set(RESOURCE_FILES "${CMAKE_SOURCE_DIR}/res/melon.icns")
-    target_sources(melonDS PUBLIC "${RESOURCE_FILES}")
-
-    set_target_properties(melonDS PROPERTIES
-        MACOSX_BUNDLE true
-        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/res/melon.plist.in
-        OUTPUT_NAME melonDS
-        RESOURCE "${RESOURCE_FILES}")
-	
-
-    # Qt 6 requires macOS 10.15 if building on 10.15 or greater
-	if(CMAKE_SYSTEM_VERSION VERSION_GREATER_EQUAL 19.0.0)
-        if (USE_QT6)
-	    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version" FORCE)
-        endif()
-    endif()
-
-    option(MACOS_BUNDLE_LIBS "Bundle libraries with the app on macOS" OFF)
-    option(MACOS_BUILD_DMG "Build DMG image of the macOS application bundle" OFF)
-
-    if (MACOS_BUNDLE_LIBS)
-        if (MACOS_BUILD_DMG)
-            set(DMGARG "--dmg")
-        endif()
-        add_custom_command(TARGET melonDS POST_BUILD
-            COMMAND ${CMAKE_SOURCE_DIR}/tools/mac-libs.rb ${DMGARG} ${CMAKE_BINARY_DIR}
-            COMMENT "Bundling macOS libraries...")
-    endif()
-endif()
-
 if (UNIX AND NOT APPLE)
     foreach(SIZE 16 32 48 64 128 256)
         install(FILES ${CMAKE_SOURCE_DIR}/res/icon/melon_${SIZE}x${SIZE}.png

@@ -8,13 +8,15 @@ if (POLICY CMP0076)
     cmake_policy(SET CMP0076 NEW)
 endif()
 
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum OS X deployment version")
-
 project(melonDS CXX)
 
+set(CMAKE_OSX_DEPLOYMENT_TARGET "12" CACHE STRING "Minimum OS X deployment version")
+
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+find_package(Threads REQUIRED)
 
 set(MELONDS_VERSION "0.9.3")
 add_compile_definitions(MELONDS_VERSION="${MELONDS_VERSION}")
@@ -144,3 +146,5 @@ add_subdirectory(src)
 if (BUILD_QT_SDL)
 	add_subdirectory(src/frontend/qt_sdl)
 endif()
+
+add_subdirectory(src/frontend/sdl)
