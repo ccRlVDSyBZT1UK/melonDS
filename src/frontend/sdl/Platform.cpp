@@ -42,20 +42,22 @@
 #define closesocket close
 #endif
 
+#include <QStandardPaths>
+#include <QString>
+#include <QDir>
+#include <QThread>
+#include <QSemaphore>
+#include <QMutex>
+
 #include "Platform.h"
 #include "Config.h"
 #include <string>
-#include <mutex>
-#include <semaphore>
-#include <thread>
-#include <fstream>
-#include <chrono>
 
 #ifndef INVALID_SOCKET
 #define INVALID_SOCKET (socket_t) - 1
 #endif
 
-void emuStop();
+std::string EmuDirectory;
 
 namespace Platform
 {
@@ -68,6 +70,39 @@ namespace Platform
 
     void Init(int argc, char **argv)
     {
+#if defined(__WIN32__) || defined(PORTABLE)
+        if (argc > 0 && strlen(argv[0]) > 0)
+        {
+            int len = strlen(argv[0]);
+            while (len > 0)
+            {
+                if (argv[0][len] == '/')
+                    break;
+                if (argv[0][len] == '\\')
+                    break;
+                len--;
+            }
+            if (len > 0)
+            {
+                std::string emudir = argv[0];
+                EmuDirectory = emudir.substr(0, len);
+            }
+            else
+            {
+                EmuDirectory = ".";
+            }
+        }
+        else
+        {
+            EmuDirectory = ".";
+        }
+#else
+        QString confdir;
+        QDir config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation));
+        config.mkdir("melonDS");
+        confdir = config.absolutePath() + "/melonDS/";
+        EmuDirectory = confdir.toStdString();
+#endif
     }
 
     void DeInit()
@@ -236,84 +271,134 @@ namespace Platform
 
     FILE *OpenFile(std::string path, std::string mode, bool mustexist)
     {
-        return NULL;
+        QFile f(QString::fromStdString(path));
+
+        if (mustexist && !f.exists())
+        {
+            return nullptr;
+        }
+
+        QIODevice::OpenMode qmode;
+        if (mode.length() > 1 && mode[0] == 'r' && mode[1] == '+')
+        {
+            qmode = QIODevice::OpenModeFlag::ReadWrite;
+        }
+        else if (mode.length() > 1 && mode[0] == 'w' && mode[1] == '+')
+        {
+            qmode = QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::ReadWrite;
+        }
+        else if (mode[0] == 'w')
+        {
+            qmode = QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::WriteOnly;
+        }
+        else
+        {
+            qmode = QIODevice::OpenModeFlag::ReadOnly;
+        }
+
+        f.open(qmode);
+        FILE *file = fdopen(dup(f.handle()), mode.c_str());
+        f.close();
+
+        return file;
     }
 
     FILE *OpenLocalFile(std::string path, std::string mode)
     {
-        return NULL;
+        QString qpath = QString::fromStdString(path);
+        QDir dir(qpath);
+        QString fullpath;
+
+        if (dir.isAbsolute())
+        {
+            // If it's an absolute path, just open that.
+            fullpath = qpath;
+        }
+        else
+        {
+#ifdef PORTABLE
+            fullpath = QString::fromStdString(EmuDirectory) + QDir::separator() + qpath;
+#else
+            // Check user configuration directory
+            QDir config(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation));
+            config.mkdir("melonDS");
+            fullpath = config.absolutePath() + "/melonDS/";
+            fullpath.append(qpath);
+#endif
+        }
+
+        return OpenFile(fullpath.toStdString(), mode, mode[0] != 'w');
     }
 
     Thread *Thread_Create(std::function<void()> func)
     {
-        std::thread t(func);
-        return (Thread *)&t;
+        QThread *t = QThread::create(func);
+        t->start();
+        return (Thread *)t;
     }
 
     void Thread_Free(Thread *thread)
     {
-        std::thread *t = (std::thread *)thread;
+        QThread *t = (QThread *)thread;
+        t->terminate();
         delete t;
     }
 
     void Thread_Wait(Thread *thread)
     {
-        ((std::thread *)thread)->join();
-    }
-
-    void Sleep(u64 usecs_raw)
-    {
-        std::chrono::microseconds us(usecs_raw);
-        std::this_thread::sleep_for(us);
+        ((QThread *)thread)->wait();
     }
 
     Semaphore *Semaphore_Create()
     {
-        return (Semaphore *)new std::counting_semaphore<1000>();
+        return (Semaphore *)new QSemaphore();
     }
 
     void Semaphore_Free(Semaphore *sema)
     {
-        delete (std::counting_semaphore<1000> *)sema;
+        delete (QSemaphore *)sema;
     }
 
     void Semaphore_Reset(Semaphore *sema)
     {
+        QSemaphore *s = (QSemaphore *)sema;
+
+        s->acquire(s->available());
     }
 
     void Semaphore_Wait(Semaphore *sema)
     {
-        ((std::counting_semaphore<1000> *)sema)->acquire();
+        ((QSemaphore *)sema)->acquire();
     }
 
     void Semaphore_Post(Semaphore *sema, int count)
     {
-        ((std::counting_semaphore<1000> *)sema)->release(count);
+        ((QSemaphore *)sema)->release(count);
     }
 
     Mutex *Mutex_Create()
     {
-        return (Mutex *)new std::mutex();
+        return (Mutex *)new QMutex();
     }
 
     void Mutex_Free(Mutex *mutex)
     {
-        delete (std::mutex *)mutex;
+        delete (QMutex *)mutex;
     }
 
     void Mutex_Lock(Mutex *mutex)
     {
-        ((std::mutex *)mutex)->lock();
+        ((QMutex *)mutex)->lock();
     }
 
     void Mutex_Unlock(Mutex *mutex)
     {
-        ((std::mutex *)mutex)->unlock();
+        ((QMutex *)mutex)->unlock();
     }
 
     bool Mutex_TryLock(Mutex *mutex)
     {
-        return ((std::mutex *)mutex)->try_lock();
+        return ((QMutex *)mutex)->try_lock();
     }
 
     bool MP_Init()
@@ -465,4 +550,10 @@ namespace Platform
     int LAN_RecvPacket(u8 *data)
     {
     }
+
+    void Sleep(u64 usecs)
+    {
+        QThread::usleep(usecs);
+    }
+
 }

@@ -11,6 +11,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+find_package(Qt6 COMPONENTS Core Gui Widgets Network OpenGL OpenGLWidgets REQUIRED)
+set(QT_LINK_LIBS Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::OpenGL Qt6::OpenGLWidgets)
+
 find_package(PkgConfig REQUIRED)
 find_package(Iconv REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)
@@ -26,6 +29,7 @@ target_link_directories(melonDS_sdl PRIVATE ${LIBARCHIVE_LIBRARY_DIRS})
 
 target_include_directories(melonDS_sdl PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(melonDS_sdl PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+target_link_libraries(melonDS_sdl ${QT_LINK_LIBS})
 target_link_libraries(melonDS_sdl core)
 
 if (BUILD_STATIC)

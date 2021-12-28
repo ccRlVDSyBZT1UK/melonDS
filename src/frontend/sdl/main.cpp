@@ -21,8 +21,8 @@
 #define MELONDS_VERSION "0.9.3"
 #define MELONDS_URL "http://melonds.kuribo64.net/"
 
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
+#define WINDOW_WIDTH 256
+#define WINDOW_HEIGHT 192
 
 enum
 {
@@ -73,8 +73,8 @@ bool init()
     }
     SDL_JoystickEventState(SDL_ENABLE);
 
-    screen[0] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 256, 192);
-    screen[1] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 256, 192);
+    screen[0] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, 256, 192);
+    screen[1] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, 256, 192);
 
     SavestateLoaded = false;
     memset(ROMPath[ROMSlot_NDS], 0, 1024);
@@ -96,7 +96,7 @@ void process_event(SDL_Event *event)
     SDL_Keycode key = event->key.keysym.sym;
     if (key == SDLK_ESCAPE)
     {
-        EmuRunning = 1;
+        EmuRunning = 0;
     }
 }
 
@@ -118,7 +118,7 @@ void draw()
 {
 }
 
-void main_loop()
+void main_loop(char *rompath, char *srampath)
 {
     NDS::Init();
     u32 mainScreenPos[3];
@@ -130,6 +130,12 @@ void main_loop()
     GPU::SetRenderSettings(videoRenderer, videoSettings);
     SPU::SetInterpolation(0);
 
+    if (!NDS::LoadROM(rompath, srampath, true))
+    {
+        printf("failed to load the rom %s\n", rompath);
+        return;
+    }
+
     u32 nframes = 0;
     double perfCountsSec = 1.0 / SDL_GetPerformanceFrequency();
     double lastTime = SDL_GetPerformanceCounter() * perfCountsSec;
@@ -138,14 +144,11 @@ void main_loop()
 
     char melontitle[100];
     EmuRunning = 1;
+    printf("set to emurunning=1\n");
 
     while (EmuRunning != 0)
     {
         process_input();
-
-        SDL_SetRenderDrawColor(renderer, 0xa6, 0xa6, 0xa6, 255);
-        SDL_RenderClear(renderer);
-        SDL_RenderPresent(renderer);
 
         // emulate
         u32 nlines = NDS::RunFrame();
@@ -154,15 +157,24 @@ void main_loop()
         int frontBufferIdx = GPU::FrontBuffer;
         //FrontBufferLock.unlock();
 
-        SDL_UpdateTexture(screen[0], NULL, GPU::Framebuffer[frontBufferIdx][0], 4);
-        SDL_UpdateTexture(screen[1], NULL, GPU::Framebuffer[frontBufferIdx][1], 4);
+        if (SDL_UpdateTexture(screen[0], NULL, GPU::Framebuffer[frontBufferIdx][0], 1024) < 0)
+        {
+            printf("update texture failed: %s\n", SDL_GetError());
+        }
+        if (SDL_UpdateTexture(screen[1], NULL, GPU::Framebuffer[frontBufferIdx][1], 1024) < 0)
+        {
+            printf("update texture failed: %s\n", SDL_GetError());
+        }
         SDL_SetRenderDrawColor(renderer, 0xA6, 0xA6, 0xA6, 0xFF);
         SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, screen[0], NULL, NULL);
+        if (SDL_RenderCopy(renderer, screen[1], NULL, NULL) < 0)
+        {
+            printf("render copy failed: %s\n", SDL_GetError());
+        }
+        SDL_RenderPresent(renderer);
 
         if (EmuRunning == 0)
             break;
-
         double frametimeStep = nlines / (60.0 * 263.0);
         {
             bool limitfps = true;
@@ -199,7 +211,7 @@ void main_loop()
 
             float fpstarget = 1.0 / frametimeStep;
 
-            printf(melontitle, "[%d/%.0f] melonDS\n" MELONDS_VERSION, fps, fpstarget);
+            printf("[%d/%.0f] melonDS\n" MELONDS_VERSION, fps, fpstarget);
         }
     }
     GPU::DeInitRenderer();
@@ -213,7 +225,19 @@ void destroy()
     SDL_Quit();
 }
 
-int main()
+void main_loop_simple()
+{
+    EmuRunning = 1;
+    while (EmuRunning != 0)
+    {
+        process_input();
+        SDL_SetRenderDrawColor(renderer, 0xA6, 0xA6, 0xA6, 0xFF);
+        SDL_RenderClear(renderer);
+        SDL_RenderPresent(renderer);
+    }
+}
+
+int main(int argc, char **argv)
 {
     srand(time(NULL));
 
@@ -221,7 +245,9 @@ int main()
     printf(MELONDS_URL "\n");
 
     init();
-    main_loop();
+
+    printf("calling into main loop\n");
+    main_loop(argv[1], argv[2]);
 
     destroy();
     return EXIT_SUCCESS;
