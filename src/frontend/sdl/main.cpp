@@ -7,7 +7,9 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#endif
 #include <SDL2/SDL.h>
 
 #include "NDS.h"
@@ -16,6 +18,7 @@
 #include "GPU.h"
 #include "SPU.h"
 #include "Wifi.h"
+#include "Input.h"
 
 #include "Savestate.h"
 #define MELONDS_VERSION "0.9.3"
@@ -98,6 +101,44 @@ void process_event(SDL_Event *event)
     {
         EmuRunning = 0;
     }
+    Event evt;
+    if (event->key.type == SDL_KEYDOWN)
+    {
+        evt = Press;
+    }
+    else
+    {
+        evt = Release;
+    }
+    switch (key)
+    {
+    case SDLK_UP:
+        HandleEvent(UpDir, evt);
+    case SDLK_DOWN:
+        HandleEvent(DownDir, evt);
+    case SDLK_LEFT:
+        HandleEvent(LeftDir, evt);
+    case SDLK_RIGHT:
+        HandleEvent(RightDir, evt);
+    case SDLK_a:
+        HandleEvent(ABtn, evt);
+    case SDLK_b:
+        HandleEvent(BBtn, evt);
+    case SDLK_x:
+        HandleEvent(XBtn, evt);
+    case SDLK_y:
+        HandleEvent(YBtn, evt);
+    case SDLK_COMMA:
+        HandleEvent(LeftBtn, evt);
+    case SDLK_SEMICOLON:
+        HandleEvent(StartBtn, evt);
+    case SDLK_QUOTE:
+        HandleEvent(SelectBtn, evt);
+    case SDLK_PERIOD:
+        HandleEvent(RightBtn, evt);
+    case SDLK_q:
+        HandleEvent(PowerBtn, evt);
+    }
 }
 
 void process_input()
@@ -118,14 +159,15 @@ void draw()
 {
 }
 
-void main_loop(char *rompath, char *srampath)
+u32 nframes;
+double perfCountsSec;
+double lastTime;
+double frameLimitError;
+double lastMeasureTime;
+
+bool init_loop(char *rompath, char *srampath)
 {
     NDS::Init();
-    u32 mainScreenPos[3];
-    mainScreenPos[0] = 0;
-    mainScreenPos[1] = 0;
-    mainScreenPos[2] = 0;
-    autoScreenSizing = 0;
     GPU::InitRenderer(videoRenderer);
     GPU::SetRenderSettings(videoRenderer, videoSettings);
     SPU::SetInterpolation(0);
@@ -133,93 +175,93 @@ void main_loop(char *rompath, char *srampath)
     if (!NDS::LoadROM(rompath, srampath, true))
     {
         printf("failed to load the rom %s\n", rompath);
-        return;
+        return false;
     }
 
-    u32 nframes = 0;
-    double perfCountsSec = 1.0 / SDL_GetPerformanceFrequency();
-    double lastTime = SDL_GetPerformanceCounter() * perfCountsSec;
-    double frameLimitError = 0.0;
-    double lastMeasureTime = lastTime;
-
-    char melontitle[100];
+    nframes = 0;
+    perfCountsSec = 1.0 / SDL_GetPerformanceFrequency();
+    lastTime = SDL_GetPerformanceCounter() * perfCountsSec;
+    frameLimitError = 0.0;
+    lastMeasureTime = lastTime;
     EmuRunning = 1;
     printf("set to emurunning=1\n");
+    return true;
+}
 
-    while (EmuRunning != 0)
+void main_loop()
+{
+    process_input();
+    NDS::SetKeyMask(Input::InputMask);
+
+    // emulate
+    u32 nlines = NDS::RunFrame();
+
+    //FrontBufferLock.lock();
+    int frontBufferIdx = GPU::FrontBuffer;
+    //FrontBufferLock.unlock();
+
+    if (SDL_UpdateTexture(screen[0], NULL, GPU::Framebuffer[frontBufferIdx][0], 1024) < 0)
     {
-        process_input();
-
-        // emulate
-        u32 nlines = NDS::RunFrame();
-
-        //FrontBufferLock.lock();
-        int frontBufferIdx = GPU::FrontBuffer;
-        //FrontBufferLock.unlock();
-
-        if (SDL_UpdateTexture(screen[0], NULL, GPU::Framebuffer[frontBufferIdx][0], 1024) < 0)
-        {
-            printf("update texture failed: %s\n", SDL_GetError());
-        }
-        if (SDL_UpdateTexture(screen[1], NULL, GPU::Framebuffer[frontBufferIdx][1], 1024) < 0)
-        {
-            printf("update texture failed: %s\n", SDL_GetError());
-        }
-        SDL_SetRenderDrawColor(renderer, 0xA6, 0xA6, 0xA6, 0xFF);
-        SDL_RenderClear(renderer);
-        if (SDL_RenderCopy(renderer, screen[1], NULL, NULL) < 0)
-        {
-            printf("render copy failed: %s\n", SDL_GetError());
-        }
-        SDL_RenderPresent(renderer);
-
-        if (EmuRunning == 0)
-            break;
-        double frametimeStep = nlines / (60.0 * 263.0);
-        {
-            bool limitfps = true;
-
-            double practicalFramelimit = limitfps ? frametimeStep : 1.0 / 1000.0;
-
-            double curtime = SDL_GetPerformanceCounter() * perfCountsSec;
-
-            frameLimitError += practicalFramelimit - (curtime - lastTime);
-            if (frameLimitError < -practicalFramelimit)
-                frameLimitError = -practicalFramelimit;
-            if (frameLimitError > practicalFramelimit)
-                frameLimitError = practicalFramelimit;
-
-            if (round(frameLimitError * 1000.0) > 0.0)
-            {
-                SDL_Delay(round(frameLimitError * 1000.0));
-                double timeBeforeSleep = curtime;
-                curtime = SDL_GetPerformanceCounter() * perfCountsSec;
-                frameLimitError -= curtime - timeBeforeSleep;
-            }
-
-            lastTime = curtime;
-        }
-        nframes++;
-        if (nframes >= 30)
-        {
-            double time = SDL_GetPerformanceCounter() * perfCountsSec;
-            double dt = time - lastMeasureTime;
-            lastMeasureTime = time;
-
-            u32 fps = round(nframes / dt);
-            nframes = 0;
-
-            float fpstarget = 1.0 / frametimeStep;
-
-            printf("[%d/%.0f] melonDS\n" MELONDS_VERSION, fps, fpstarget);
-        }
+        printf("update texture failed: %s\n", SDL_GetError());
     }
-    GPU::DeInitRenderer();
-    NDS::DeInit();
+    if (SDL_UpdateTexture(screen[1], NULL, GPU::Framebuffer[frontBufferIdx][1], 1024) < 0)
+    {
+        printf("update texture failed: %s\n", SDL_GetError());
+    }
+    SDL_SetRenderDrawColor(renderer, 0xA6, 0xA6, 0xA6, 0xFF);
+    SDL_RenderClear(renderer);
+    if (SDL_RenderCopy(renderer, screen[1], NULL, NULL) < 0)
+    {
+        printf("render copy failed: %s\n", SDL_GetError());
+    }
+    SDL_RenderPresent(renderer);
+
+    if (EmuRunning == 0)
+        return;
+    double frametimeStep = nlines / (60.0 * 263.0);
+    {
+        bool limitfps = true;
+
+        double practicalFramelimit = limitfps ? frametimeStep : 1.0 / 1000.0;
+
+        double curtime = SDL_GetPerformanceCounter() * perfCountsSec;
+
+        frameLimitError += practicalFramelimit - (curtime - lastTime);
+        if (frameLimitError < -practicalFramelimit)
+            frameLimitError = -practicalFramelimit;
+        if (frameLimitError > practicalFramelimit)
+            frameLimitError = practicalFramelimit;
+
+        if (round(frameLimitError * 1000.0) > 0.0)
+        {
+            SDL_Delay(round(frameLimitError * 1000.0));
+            double timeBeforeSleep = curtime;
+            curtime = SDL_GetPerformanceCounter() * perfCountsSec;
+            frameLimitError -= curtime - timeBeforeSleep;
+        }
+
+        lastTime = curtime;
+    }
+    nframes++;
+    if (nframes >= 30)
+    {
+        double time = SDL_GetPerformanceCounter() * perfCountsSec;
+        double dt = time - lastMeasureTime;
+        lastMeasureTime = time;
+
+        u32 fps = round(nframes / dt);
+        nframes = 0;
+
+        float fpstarget = 1.0 / frametimeStep;
+
+        printf("[%d/%.0f] melonDS\n" MELONDS_VERSION, fps, fpstarget);
+    }
 }
 
 void destroy()
 {
+    GPU::DeInitRenderer();
+    NDS::DeInit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -245,10 +287,16 @@ int main(int argc, char **argv)
     printf(MELONDS_URL "\n");
 
     init();
-
+    init_loop("assetdir/platinum.nds", "assetdir/platinum.nds.sram");
     printf("calling into main loop\n");
-    main_loop(argv[1], argv[2]);
-
+#ifdef EMSCRIPTEN
+    emscripten_set_main_loop(main_loop, -1, 1);
+#else
+    while (EmuRunning)
+    {
+        main_loop();
+    }
+#endif
     destroy();
     return EXIT_SUCCESS;
 }

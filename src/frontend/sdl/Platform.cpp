@@ -42,22 +42,22 @@
 #define closesocket close
 #endif
 
-#include <QStandardPaths>
-#include <QString>
-#include <QDir>
-#include <QThread>
-#include <QSemaphore>
-#include <QMutex>
+#include <SDL2/SDL.h>
 
+#include <stdio.h>
 #include "Platform.h"
 #include "Config.h"
 #include <string>
+#include <mutex>
+#include <thread>
+#include <fstream>
+#include <chrono>
 
 #ifndef INVALID_SOCKET
 #define INVALID_SOCKET (socket_t) - 1
 #endif
 
-std::string EmuDirectory;
+void emuStop();
 
 namespace Platform
 {
@@ -70,39 +70,6 @@ namespace Platform
 
     void Init(int argc, char **argv)
     {
-#if defined(__WIN32__) || defined(PORTABLE)
-        if (argc > 0 && strlen(argv[0]) > 0)
-        {
-            int len = strlen(argv[0]);
-            while (len > 0)
-            {
-                if (argv[0][len] == '/')
-                    break;
-                if (argv[0][len] == '\\')
-                    break;
-                len--;
-            }
-            if (len > 0)
-            {
-                std::string emudir = argv[0];
-                EmuDirectory = emudir.substr(0, len);
-            }
-            else
-            {
-                EmuDirectory = ".";
-            }
-        }
-        else
-        {
-            EmuDirectory = ".";
-        }
-#else
-        QString confdir;
-        QDir config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation));
-        config.mkdir("melonDS");
-        confdir = config.absolutePath() + "/melonDS/";
-        EmuDirectory = confdir.toStdString();
-#endif
     }
 
     void DeInit()
@@ -271,134 +238,92 @@ namespace Platform
 
     FILE *OpenFile(std::string path, std::string mode, bool mustexist)
     {
-        QFile f(QString::fromStdString(path));
-
-        if (mustexist && !f.exists())
-        {
-            return nullptr;
-        }
-
-        QIODevice::OpenMode qmode;
-        if (mode.length() > 1 && mode[0] == 'r' && mode[1] == '+')
-        {
-            qmode = QIODevice::OpenModeFlag::ReadWrite;
-        }
-        else if (mode.length() > 1 && mode[0] == 'w' && mode[1] == '+')
-        {
-            qmode = QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::ReadWrite;
-        }
-        else if (mode[0] == 'w')
-        {
-            qmode = QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::WriteOnly;
-        }
-        else
-        {
-            qmode = QIODevice::OpenModeFlag::ReadOnly;
-        }
-
-        f.open(qmode);
-        FILE *file = fdopen(dup(f.handle()), mode.c_str());
-        f.close();
-
-        return file;
+        return fopen(const_cast<char *>(path.c_str()), const_cast<char *>(mode.c_str()));
     }
 
     FILE *OpenLocalFile(std::string path, std::string mode)
     {
-        QString qpath = QString::fromStdString(path);
-        QDir dir(qpath);
-        QString fullpath;
-
-        if (dir.isAbsolute())
-        {
-            // If it's an absolute path, just open that.
-            fullpath = qpath;
-        }
-        else
-        {
-#ifdef PORTABLE
-            fullpath = QString::fromStdString(EmuDirectory) + QDir::separator() + qpath;
-#else
-            // Check user configuration directory
-            QDir config(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation));
-            config.mkdir("melonDS");
-            fullpath = config.absolutePath() + "/melonDS/";
-            fullpath.append(qpath);
-#endif
-        }
-
-        return OpenFile(fullpath.toStdString(), mode, mode[0] != 'w');
+        return fopen(const_cast<char *>(path.c_str()), const_cast<char *>(mode.c_str()));
     }
 
     Thread *Thread_Create(std::function<void()> func)
     {
-        QThread *t = QThread::create(func);
-        t->start();
-        return (Thread *)t;
+        return (Thread *)new std::thread(func);
     }
 
     void Thread_Free(Thread *thread)
     {
-        QThread *t = (QThread *)thread;
-        t->terminate();
+        std::thread *t = (std::thread *)thread;
         delete t;
     }
 
     void Thread_Wait(Thread *thread)
     {
-        ((QThread *)thread)->wait();
+        ((std::thread *)thread)->join();
+    }
+
+    void Sleep(u64 usecs_raw)
+    {
+        std::chrono::microseconds us(usecs_raw);
+        std::this_thread::sleep_for(us);
     }
 
     Semaphore *Semaphore_Create()
     {
-        return (Semaphore *)new QSemaphore();
+
+        return (Semaphore *)SDL_CreateSemaphore(0);
     }
 
     void Semaphore_Free(Semaphore *sema)
     {
-        delete (QSemaphore *)sema;
+        SDL_DestroySemaphore((SDL_sem *)sema);
     }
 
     void Semaphore_Reset(Semaphore *sema)
     {
-        QSemaphore *s = (QSemaphore *)sema;
-
-        s->acquire(s->available());
+        int count = SDL_SemValue((SDL_sem *)sema);
+        for (int i = 0; i < count; i++)
+        {
+            SDL_SemPost((SDL_sem *)sema);
+        }
     }
 
     void Semaphore_Wait(Semaphore *sema)
     {
-        ((QSemaphore *)sema)->acquire();
+        SDL_SemWait((SDL_sem *)sema);
     }
 
     void Semaphore_Post(Semaphore *sema, int count)
     {
-        ((QSemaphore *)sema)->release(count);
+        for (int i = 0; i < count; i++)
+        {
+            SDL_SemPost((SDL_sem *)sema);
+        }
     }
 
     Mutex *Mutex_Create()
     {
-        return (Mutex *)new QMutex();
+        return (Mutex *)new std::mutex();
     }
 
     void Mutex_Free(Mutex *mutex)
     {
-        delete (QMutex *)mutex;
+        delete (std::mutex *)mutex;
     }
 
     void Mutex_Lock(Mutex *mutex)
     {
-        ((QMutex *)mutex)->lock();
+        ((std::mutex *)mutex)->lock();
     }
 
     void Mutex_Unlock(Mutex *mutex)
     {
-        ((QMutex *)mutex)->unlock();
+        ((std::mutex *)mutex)->unlock();
     }
 
     bool Mutex_TryLock(Mutex *mutex)
     {
-        return ((QMutex *)mutex)->try_lock();
+        return ((std::mutex *)mutex)->try_lock();
     }
 
     bool MP_Init()
@@ -545,15 +470,11 @@ namespace Platform
 
     int LAN_SendPacket(u8 *data, int len)
     {
+        return 0;
     }
 
     int LAN_RecvPacket(u8 *data)
     {
+        return 0;
     }
-
-    void Sleep(u64 usecs)
-    {
-        QThread::usleep(usecs);
-    }
-
 }
