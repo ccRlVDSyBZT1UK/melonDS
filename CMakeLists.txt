@@ -10,6 +10,9 @@ endif()
 
 project(melonDS CXX)
 
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+
+
 set(CMAKE_OSX_DEPLOYMENT_TARGET "12" CACHE STRING "Minimum OS X deployment version")
 
 set(CMAKE_C_STANDARD 11)
@@ -17,6 +20,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 find_package(Threads REQUIRED)
+add_compile_options("-pthread")
+link_libraries("-pthread")
 
 set(MELONDS_VERSION "0.9.3")
 add_compile_definitions(MELONDS_VERSION="${MELONDS_VERSION}")
@@ -84,14 +89,10 @@ else()
 	option(ENABLE_LTO "Enable link-time optimization" OFF)
 endif()
 
-option(ENABLE_OGLRENDERER "Enable OpenGL renderer" ON)
+option(ENABLE_OGLRENDERER "Enable OpenGL renderer" OFF)
 
 if (ENABLE_OGLRENDERER)
     add_definitions(-DOGLRENDERER_ENABLED)
-endif()
-
-if (CMAKE_BUILD_TYPE STREQUAL Debug)
-	add_compile_options(-Og)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL Release)
