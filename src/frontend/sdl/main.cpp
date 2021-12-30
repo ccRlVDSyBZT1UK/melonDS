@@ -91,53 +91,104 @@ bool init()
     videoSettings.GL_ScaleFactor = 1;
     videoSettings.GL_BetterPolygons = true;
     videoRenderer = 0;
+
+    NDS::Init();
+    GPU::InitRenderer(videoRenderer);
+    GPU::SetRenderSettings(videoRenderer, videoSettings);
+    SPU::SetInterpolation(0);
+
     return true;
+}
+
+void process_keyboard_event(SDL_Event *event)
+{
+    SDL_Keycode key = event->key.keysym.sym;
+    Input::ButtonEvent evt = event->key.type == SDL_KEYDOWN ? Input::Press : Input::Release;
+    switch (key)
+    {
+    case SDLK_UP:
+        HandleButton(Input::UpDir, evt);
+        break;
+    case SDLK_DOWN:
+        HandleButton(Input::DownDir, evt);
+        break;
+    case SDLK_LEFT:
+        HandleButton(Input::LeftDir, evt);
+        break;
+    case SDLK_RIGHT:
+        HandleButton(Input::RightDir, evt);
+        break;
+    case SDLK_a:
+        HandleButton(Input::ABtn, evt);
+        break;
+    case SDLK_b:
+        HandleButton(Input::BBtn, evt);
+        break;
+    case SDLK_x:
+        HandleButton(Input::XBtn, evt);
+        break;
+    case SDLK_y:
+        HandleButton(Input::YBtn, evt);
+        break;
+    case SDLK_COMMA:
+        HandleButton(Input::LeftBtn, evt);
+        break;
+    case SDLK_SEMICOLON:
+        HandleButton(Input::StartBtn, evt);
+        break;
+    case SDLK_QUOTE:
+        HandleButton(Input::SelectBtn, evt);
+        break;
+    case SDLK_PERIOD:
+        HandleButton(Input::RightBtn, evt);
+        break;
+    case SDLK_q:
+        HandleButton(Input::PowerBtn, evt);
+        break;
+    case SDLK_s:
+        if (event->key.type == SDL_KEYDOWN)
+        {
+            ToggleScreen();
+        }
+        break;
+    case SDLK_ESCAPE:
+        EmuRunning = 0;
+        break;
+    }
 }
 
 void process_event(SDL_Event *event)
 {
-    SDL_Keycode key = event->key.keysym.sym;
-    if (key == SDLK_ESCAPE)
+    switch (event->type)
     {
+    case SDL_QUIT:
         EmuRunning = 0;
-    }
-    Event evt;
-    if (event->key.type == SDL_KEYDOWN)
-    {
-        evt = Press;
-    }
-    else
-    {
-        evt = Release;
-    }
-    switch (key)
-    {
-    case SDLK_UP:
-        HandleEvent(UpDir, evt);
-    case SDLK_DOWN:
-        HandleEvent(DownDir, evt);
-    case SDLK_LEFT:
-        HandleEvent(LeftDir, evt);
-    case SDLK_RIGHT:
-        HandleEvent(RightDir, evt);
-    case SDLK_a:
-        HandleEvent(ABtn, evt);
-    case SDLK_b:
-        HandleEvent(BBtn, evt);
-    case SDLK_x:
-        HandleEvent(XBtn, evt);
-    case SDLK_y:
-        HandleEvent(YBtn, evt);
-    case SDLK_COMMA:
-        HandleEvent(LeftBtn, evt);
-    case SDLK_SEMICOLON:
-        HandleEvent(StartBtn, evt);
-    case SDLK_QUOTE:
-        HandleEvent(SelectBtn, evt);
-    case SDLK_PERIOD:
-        HandleEvent(RightBtn, evt);
-    case SDLK_q:
-        HandleEvent(PowerBtn, evt);
+        break;
+    case SDL_KEYDOWN:
+    case SDL_KEYUP:
+        process_keyboard_event(event);
+        break;
+    case SDL_MOUSEBUTTONDOWN:
+        HandleTouch(Input::StartTouch, event->button.x, event->button.y);
+        break;
+    case SDL_MOUSEBUTTONUP:
+        HandleTouch(Input::EndTouch, event->button.x, event->button.y);
+        break;
+    case SDL_MOUSEMOTION:
+        if (event->motion.state & SDL_BUTTON_LMASK)
+        {
+            HandleTouch(Input::DragTouch, event->motion.x, event->motion.y);
+        }
+        break;
+    case SDL_FINGERDOWN:
+        HandleTouch(Input::StartTouch, int(event->tfinger.x * float(WINDOW_WIDTH)), int(event->tfinger.y * float(WINDOW_HEIGHT)));
+        break;
+    case SDL_FINGERUP:
+        HandleTouch(Input::EndTouch, int(event->tfinger.x * float(WINDOW_WIDTH)), int(event->tfinger.y * float(WINDOW_HEIGHT)));
+        break;
+    case SDL_FINGERMOTION:
+        HandleTouch(Input::DragTouch, int(event->tfinger.x * float(WINDOW_WIDTH)), int(event->tfinger.y * float(WINDOW_HEIGHT)));
+        break;
     }
 }
 
@@ -165,33 +216,34 @@ double lastTime;
 double frameLimitError;
 double lastMeasureTime;
 
-bool init_loop(char *rompath, char *srampath)
+void reset_loop()
 {
-    NDS::Init();
-    GPU::InitRenderer(videoRenderer);
-    GPU::SetRenderSettings(videoRenderer, videoSettings);
-    SPU::SetInterpolation(0);
-
-    if (!NDS::LoadROM(rompath, srampath, true))
-    {
-        printf("failed to load the rom %s\n", rompath);
-        return false;
-    }
-
     nframes = 0;
     perfCountsSec = 1.0 / SDL_GetPerformanceFrequency();
     lastTime = SDL_GetPerformanceCounter() * perfCountsSec;
     frameLimitError = 0.0;
     lastMeasureTime = lastTime;
+    printf("setting EmuRunning=1\n");
     EmuRunning = 1;
-    printf("set to emurunning=1\n");
-    return true;
 }
 
 void main_loop()
 {
+    if (EmuRunning == 0)
+        return;
+
     process_input();
-    NDS::SetKeyMask(Input::InputMask);
+    NDS::SetKeyMask(InputMask);
+    switch (GetTouchState())
+    {
+    case Input::StartTouch:
+    case Input::DragTouch:
+        NDS::TouchScreen(TouchX, TouchY);
+        break;
+    case Input::EndTouch:
+        NDS::ReleaseScreen();
+        break;
+    }
 
     // emulate
     u32 nlines = NDS::RunFrame();
@@ -210,14 +262,12 @@ void main_loop()
     }
     SDL_SetRenderDrawColor(renderer, 0xA6, 0xA6, 0xA6, 0xFF);
     SDL_RenderClear(renderer);
-    if (SDL_RenderCopy(renderer, screen[1], NULL, NULL) < 0)
+    if (SDL_RenderCopy(renderer, screen[PrimaryScreen], NULL, NULL) < 0)
     {
         printf("render copy failed: %s\n", SDL_GetError());
     }
     SDL_RenderPresent(renderer);
 
-    if (EmuRunning == 0)
-        return;
     double frametimeStep = nlines / (60.0 * 263.0);
     {
         bool limitfps = true;
@@ -287,7 +337,6 @@ int main(int argc, char **argv)
     printf(MELONDS_URL "\n");
 
     init();
-    init_loop("assetdir/platinum.nds", "assetdir/platinum.nds.sram");
     printf("calling into main loop\n");
 #ifdef EMSCRIPTEN
     emscripten_set_main_loop(main_loop, -1, 1);

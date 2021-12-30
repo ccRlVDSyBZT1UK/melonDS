@@ -21,46 +21,112 @@
 
 #include "Input.h"
 #include "Config.h"
+#include "Savestate.h"
+#include "NDS.h"
 
-namespace Input
+using namespace Input;
+
+u32 InputMask = 0xFFF;
+u32 LastActiveKey = NullBtn;
+TouchEvent TouchState = NullTouch;
+u16 TouchX, TouchY;
+u8 PrimaryScreen;
+
+void Init()
 {
+}
 
-    u32 InputMask = 0xFFF;
-    u32 LastActiveKey = NullKey;
-
-    void Init()
+TouchEvent GetTouchState()
+{
+    TouchEvent state = TouchState;
+    switch (state)
     {
+    case StartTouch:
+    case DragTouch:
+        TouchState = ActiveTouch;
+        break;
+    case EndTouch:
+        TouchState = NullTouch;
+        break;
     }
+    return state;
+}
 
-    bool IsPressed(KeyId keyid)
+int HandleTouch(TouchEvent evt, u16 x, u16 y)
+{
+    if (evt < StartTouch || evt > NullTouch)
     {
-        return InputMask && keyid != 0;
+        printf("bad touch event %d\n", evt);
+        return 1;
     }
+    if (evt == DragTouch && (TouchState != StartTouch || TouchState != DragTouch || TouchState != ActiveTouch))
+    {
+        printf("touch drag when not in active touch");
+        return 1;
+    }
+    TouchX = x;
+    TouchY = y;
+    TouchState = evt;
+    return 0;
+}
 
-    int HandleEvent(KeyId keyid, Event event)
+bool IsPressed(ButtonId btnid)
+{
+    return InputMask && btnid != 0;
+}
+
+int HandleButton(ButtonId btnid, ButtonEvent evt)
+{
+    if (btnid < ABtn || NullBtn < btnid)
     {
-        if (keyid < NullKey || RightBtn < keyid)
+        printf("bad btnid %d\n", btnid);
+        return 1;
+    }
+    if (evt != Release && evt != Press)
+    {
+        printf("bad event %d for button %d, equal to press %d\n", evt, btnid, evt == Press);
+        printf("release %d, press %d\n", Release, Press);
+        return 1;
+    }
+    if (evt == Press)
+    {
+        InputMask &= ~(1 << btnid);
+        LastActiveKey = btnid;
+    }
+    else
+    {
+        InputMask |= (1 << btnid);
+        if (InputMask == 0xFFF)
         {
-            printf("bad keyid %d\n", keyid);
-            return 1;
-        }
-        if (event != Release || event != Press)
-        {
-            printf("bad event %d\n", keyid);
-            return 1;
-        }
-        if (event == Press)
-        {
-            InputMask &= ~(1 << keyid);
-            LastActiveKey = keyid;
-        }
-        else
-        {
-            InputMask |= (1 << keyid);
-            if (InputMask == 0xFFF)
-            {
-                LastActiveKey = NullKey;
-            }
+            LastActiveKey = NullBtn;
         }
     }
+    return 0;
+}
+
+void ToggleScreen()
+{
+    PrimaryScreen = ~PrimaryScreen & 0b1;
+}
+
+bool SaveState()
+{
+    Savestate *state = new Savestate("db/savestate", true);
+    if (state->Error)
+    {
+        delete state;
+        return false;
+    }
+    NDS::DoSavestate(state);
+    delete state;
+    return true;
+}
+
+extern void reset_loop();
+
+bool LoadRom(char *name, u8 *data, u32 datalen, char *sramname)
+{
+    NDS::LoadROM(data, datalen, sramname, true);
+    reset_loop();
+    return true;
 }
