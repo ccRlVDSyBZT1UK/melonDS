@@ -36,14 +36,11 @@ body {
   height: 240px;
 }
 
-.display {
-  position: absolute;
-  top: 0;
-  left: 0;
+#canvas {
   width: 320px;
   height: 240px;
-  background-color: #fff;
-  background-size: 320px 240px;
+  background-color: black;
+  image-rendering: pixelated;
 }
 
 #moulding {
@@ -125,10 +122,6 @@ body {
   top: 40%;
   left: 0;
   -webkit-transform: rotate(-15deg);
-}
-
-#canvas {
-  image-rendering: -webkit-optimize-contrast;
 }
 
 #STATUS {
@@ -368,7 +361,6 @@ body {
   border: 0;
   transition: left 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
   border-radius: 12px;
-  box-shadow: inset 0 0 4px rgba(255, 255, 2555, 0.2);
 }
 
 #screen-console.disable-animation {
@@ -1049,7 +1041,7 @@ hr {
 /* Large screen customizations */
 @media only screen and (min-width: 768px) {
   #display,
-  .display,
+  #canvas,
   #LCD-dropshadow {
     width: 640px;
     height: 576px;

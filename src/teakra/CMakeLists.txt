@@ -67,10 +67,6 @@ else()
     endif()
 endif()
 
-# Prefer the -pthread flag on Linux.
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-
 enable_testing()
 
 if (NOT TEAKRA_TEST_ASSETS_DIR)

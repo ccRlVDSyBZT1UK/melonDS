@@ -48,10 +48,7 @@
 #include "Platform.h"
 #include "Config.h"
 #include <string>
-#include <mutex>
-#include <thread>
 #include <fstream>
-#include <chrono>
 
 #ifndef INVALID_SOCKET
 #define INVALID_SOCKET (socket_t) - 1
@@ -248,82 +245,62 @@ namespace Platform
 
     Thread *Thread_Create(std::function<void()> func)
     {
-        return (Thread *)new std::thread(func);
+        return NULL;
     }
 
     void Thread_Free(Thread *thread)
     {
-        std::thread *t = (std::thread *)thread;
-        delete t;
     }
 
     void Thread_Wait(Thread *thread)
     {
-        ((std::thread *)thread)->join();
     }
 
     void Sleep(u64 usecs_raw)
     {
-        std::chrono::microseconds us(usecs_raw);
-        std::this_thread::sleep_for(us);
     }
 
     Semaphore *Semaphore_Create()
     {
-
-        return (Semaphore *)SDL_CreateSemaphore(0);
+        return NULL;
     }
 
     void Semaphore_Free(Semaphore *sema)
     {
-        SDL_DestroySemaphore((SDL_sem *)sema);
     }
 
     void Semaphore_Reset(Semaphore *sema)
     {
-        int count = SDL_SemValue((SDL_sem *)sema);
-        for (int i = 0; i < count; i++)
-        {
-            SDL_SemPost((SDL_sem *)sema);
-        }
     }
 
     void Semaphore_Wait(Semaphore *sema)
     {
-        SDL_SemWait((SDL_sem *)sema);
     }
 
     void Semaphore_Post(Semaphore *sema, int count)
     {
-        for (int i = 0; i < count; i++)
-        {
-            SDL_SemPost((SDL_sem *)sema);
-        }
     }
 
     Mutex *Mutex_Create()
     {
-        return (Mutex *)new std::mutex();
+        return NULL;
     }
 
     void Mutex_Free(Mutex *mutex)
     {
-        delete (std::mutex *)mutex;
     }
 
     void Mutex_Lock(Mutex *mutex)
     {
-        ((std::mutex *)mutex)->lock();
     }
 
     void Mutex_Unlock(Mutex *mutex)
     {
-        ((std::mutex *)mutex)->unlock();
     }
 
     bool Mutex_TryLock(Mutex *mutex)
     {
-        return ((std::mutex *)mutex)->try_lock();
+        return true;
     }
 
     bool MP_Init()

@@ -53,6 +53,15 @@ bool videoSettingsDirty;
 
 bool init()
 {
+    if (SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0"))
+    {
+        printf("set nearest neighbor rendering hint\n");
+    }
+    else
+    {
+        printf("failed to set nearest neighbor rendering\n");
+    }
+
     // http://stackoverflow.com/questions/14543333/joystick-wont-work-using-sdl
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     if (SDL_Init(SDL_INIT_HAPTIC) < 0)
@@ -68,8 +77,10 @@ bool init()
         printf("SDL shat itself :(\n");
         return false;
     }
-
-    SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer);
+    window = SDL_CreateWindow("", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    SDL_Surface *surface = SDL_GetWindowSurface(window);
+    renderer = SDL_CreateSoftwareRenderer(surface);
+    //SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer);
     if (window == NULL | renderer == NULL)
     {
         return false;
@@ -87,7 +98,6 @@ bool init()
     memset(PrevSRAMPath[ROMSlot_NDS], 0, 1024);
     memset(PrevSRAMPath[ROMSlot_GBA], 0, 1024);
     videoSettingsDirty = false;
-    videoSettings.Soft_Threaded = false;
     videoSettings.GL_ScaleFactor = 1;
     videoSettings.GL_BetterPolygons = true;
     videoRenderer = 0;
@@ -266,11 +276,11 @@ void main_loop()
     {
         printf("render copy failed: %s\n", SDL_GetError());
     }
-    SDL_RenderPresent(renderer);
+    SDL_UpdateWindowSurface(window);
 
     double frametimeStep = nlines / (60.0 * 263.0);
     {
-        bool limitfps = true;
+        bool limitfps = false;
 
         double practicalFramelimit = limitfps ? frametimeStep : 1.0 / 1000.0;
 
@@ -284,7 +294,7 @@ void main_loop()
 
         if (round(frameLimitError * 1000.0) > 0.0)
         {
-            SDL_Delay(round(frameLimitError * 1000.0));
+            //SDL_Delay(round(frameLimitError * 1000.0));
             double timeBeforeSleep = curtime;
             curtime = SDL_GetPerformanceCounter() * perfCountsSec;
             frameLimitError -= curtime - timeBeforeSleep;

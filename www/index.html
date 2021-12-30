@@ -23,7 +23,7 @@
 
       <div id="element-screen">
         <div id="display">
-          <canvas id="canvas" class="display emscripten" width="256" height="192" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+          <canvas id="canvas" width="256" height="192"></canvas>
         </div>
       </div>
 
@@ -72,20 +72,21 @@
     <script type='text/javascript'>
       var Module = {
         preRun: [
-          function() {
-            SetupJoystick("control-joystick");
-            SetupButton("control-a", 0);
-            SetupButton("control-b", 1);
-            SetupButton("control-x", 10);
-            SetupButton("control-y", 11);
-            SetupButton("control-start", 3);
-            SetupButton("control-select", 2);
-            SetupMacro("control-screen", _ToggleScreen);
-            SetupRomInput();
-            SetupIDBFS();
-          }, 
         ],
         postRun: [
+          function() { 
+            const gameboy = InitGameboy();
+            gameboy.SetupJoystick("control-joystick");
+            gameboy.SetupButton("control-a", 0);
+            gameboy.SetupButton("control-b", 1);
+            gameboy.SetupButton("control-x", 10);
+            gameboy.SetupButton("control-y", 11);
+            gameboy.SetupButton("control-start", 3);
+            gameboy.SetupButton("control-select", 2);
+            gameboy.SetupMacro("control-screen", _ToggleScreen);
+            gameboy.SetupRomInput();
+            gameboy.SetupIDBFS();
+          }, 
           function() {
             setInterval(function(){
               _SaveState();

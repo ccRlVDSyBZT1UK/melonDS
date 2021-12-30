@@ -39,7 +39,6 @@ add_library(teakra
 
 create_target_directory_groups(teakra)
 
-target_link_libraries(teakra PRIVATE Threads::Threads)
 target_include_directories(teakra
                            PUBLIC ../include
                            PRIVATE .)
