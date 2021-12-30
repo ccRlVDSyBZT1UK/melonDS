@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="etc/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#541E80" />
+    <meta
+      name="description"
+      content="Opinionated multi-emulator for playing Nintendo games on iOS"
+    />
+    <link rel="apple-touch-icon" href="etc/logo192.png" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="etc/gameboy.css" type="text/css">
+    <title>Game Boy</title>
+  </head>
+  <body>
+    <div id="screen-console" class="theme-gbc">
+
+      <div id="element-surround" class="element-surround">
+        <div id="surround" class="surround"></div>
+      </div>
+
+      <div id="element-screen">
+        <div id="display">
+          <canvas id="canvas" class="display emscripten" width="256" height="192" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+        </div>
+      </div>
+
+      <div id="console-navigation-bar" class="navigation-bar console-navigation-bar">
+        <div id="button-game" class="navigation-button button-library button-right">Game</div>
+      </div>
+
+      <div id="element-dpad">
+        <div class="octagon">
+          <div class="octagon-inner"></div>
+        </div>
+        <div id="control-joystick" class="joystick">
+          <div class="inner-circle-1"></div>
+          <div class="inner-circle-2"></div>
+          <div class="inner-circle-3"></div>
+          <div class="inner-circle-4"></div>
+        </div>
+      </div>
+      <div id="element-options">
+        <div id="group-options">
+          <div class="button-option-group" id="control-select">
+            <div  class="button-option"></div>
+            <div class="button-label">Select</div>
+          </div>
+          <div class="button-option-group"  id="control-start">
+            <div class="button-option"></div>
+            <div class="button-label">Start</div>
+          </div>
+          <div class="button-option-group" id="control-screen">
+            <div  class="button-option"></div>
+            <div class="button-label">Screen</div>
+          </div>
+        </div>
+      </div>
+      <div id="element-buttons">
+        <div id="group-buttons">
+          <div id="control-a" class="button"><div class="control-text">A</div></div>
+          <div id="control-b" class="button"><div class="control-text">B</div></div>
+          <div id="control-x" class="button"><div class="control-text">X</div></div>
+          <div id="control-y" class="button"><div class="control-text">Y</div></div>
+        </div>
+      </div>
+    </div>
+    <input id='rominput' type='file' accept=".nds"/>
+    <script type="text/javascript" src="etc/gameboy.js"></script>
+    <script type='text/javascript'>
+      var Module = {
+        preRun: [
+          function() {
+            SetupJoystick("control-joystick");
+            SetupButton("control-a", 0);
+            SetupButton("control-b", 1);
+            SetupButton("control-x", 10);
+            SetupButton("control-y", 11);
+            SetupButton("control-start", 3);
+            SetupButton("control-select", 2);
+            SetupMacro("control-screen", _ToggleScreen);
+            SetupRomInput();
+            SetupIDBFS();
+          }, 
+        ],
+        postRun: [
+          function() {
+            setInterval(function(){
+              _SaveState();
+            }, 10*1000);
+          }
+        ],
+        print: (function() {
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            console.log(text);
+          };
+        })(),
+        canvas: (function() {
+          var canvas = document.getElementById('canvas');
+          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+          return canvas;
+        })(),
+        setStatus: function(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          console.log(text);
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      Module.setStatus('Downloading...');
+    </script>
+    <script async type="text/javascript" src="melonDS_sdl.js"></script>
+  </body>
+</html>
