@@ -37,12 +37,25 @@ body {
 }
 
 #canvas {
+  position: relative;
   width: 320px;
-  height: 240px;
+  height: 480px;
   background-color: black;
   image-rendering: pixelated;
 }
 
+#element-settings-button {
+  margin-left: auto;
+  padding-bottom: 16px;
+  padding-left: 16px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+}
+
+#settings-icon {
+  color: #ffffff29;
+}
 #moulding {
   position: absolute;
   top: 42px;
@@ -88,29 +101,19 @@ body {
   );
 }
 
-.element-surround {
-  position: absolute;
-  top: 42px;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  text-align: center;
-}
-
 .surround {
   background-color: #111;
   border: 1px solid #000;
   border-bottom: 1.5px solid #000;
-  margin: 0 auto;
-  height: 300px;
   box-shadow: 0 2px 2px rgba(255, 255, 255, 0.08),
     inset 0 -2px 3px rgba(255, 255, 255, 0.03);
-  width: 370px;
   border-radius: 12px;
   border-bottom-left-radius: 100% 30px;
   border-bottom-right-radius: 100% 30px;
   position: relative;
   overflow: hidden;
+  padding: 10px;
+  padding-bottom: 16px;
 }
 
 .surround:before {
@@ -148,6 +151,8 @@ body {
 
 .button-option-group {
   width: 60px;
+  margin: 0 6px;
+  cursor: pointer;
 }
 
 .left {
@@ -202,10 +207,10 @@ body {
 #group-options {
   display: flex;
   position: relative;
-  width: 200px;
   height: 50px;
-  margin: auto;
-  justify-content: space-between;
+  justify-content: center;
+  margin-bottom: 12px;
+  flex-grow: 1;
 }
 
 #control-a {
@@ -350,26 +355,6 @@ body {
   padding: 20px 0;
   text-align: center;
   width: 568px;
-}
-
-#screen-console {
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  border: 0;
-  transition: left 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-  border-radius: 12px;
-}
-
-#screen-console.disable-animation {
-  transition: 0;
-}
-
-#screen-console.hidden {
-  left: 100%;
-  box-shadow: 0 0 0 rgba(0, 0, 0, 0.8);
 }
 
 .grape {
@@ -967,21 +952,20 @@ hr {
 #element-buttons {
   position: absolute;
   right: 20px;
-  bottom: 120px;
+  bottom: 70px;
 }
 
 #element-options {
   position: absolute;
   width: 100%;
-  bottom: 10px;
-  left: 0;
+  bottom: 0px;
+  display: flex;
+  align-items: flex-end;
 }
 
 #element-screen {
-  position: absolute;
-  width: 100%;
-  top: 62px;
-  left: 0;
+  width: fit-content;
+  margin: auto;
 }
 
 #screen-console-container {
@@ -1036,26 +1020,6 @@ hr {
 
 .authorization-code:focus {
   outline: none;
-}
-
-/* Large screen customizations */
-@media only screen and (min-width: 768px) {
-  #display,
-  #canvas,
-  #LCD-dropshadow {
-    width: 640px;
-    height: 576px;
-    background-size: 640px 576px;
-  }
-
-  #moulding {
-    top: 0;
-  }
-
-  .surround {
-    height: 624px;
-    width: 678px;
-  }
 }
 
 .octagon {

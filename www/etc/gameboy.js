@@ -219,9 +219,9 @@ function InitGameboy() {
         }, false);
     }
     
-    function SetupRomInput() {
+    function SetupOpenROM(elementid) {
         const rominput = document.getElementById("rominput");
-        SetupMacro("button-game", function() {
+        SetupMacro(elementid, function() {
           rominput.click();
         });
         rominput.addEventListener('change', function(event){
@@ -245,11 +245,16 @@ function InitGameboy() {
         });
     }
 
+    function ExportSRAM() {
+        
+    }
+
     return {
-        SetupRomInput,
+        SetupOpenROM,
         SetupIDBFS,
         SetupJoystick,
         SetupMacro,
         SetupButton,
+        ExportSRAM,
     }
 }

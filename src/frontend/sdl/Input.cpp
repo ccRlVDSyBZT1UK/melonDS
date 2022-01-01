@@ -30,7 +30,6 @@ u32 InputMask = 0xFFF;
 u32 LastActiveKey = NullBtn;
 TouchEvent TouchState = NullTouch;
 u16 TouchX, TouchY;
-u8 PrimaryScreen;
 
 void Init()
 {
@@ -47,6 +46,8 @@ TouchEvent GetTouchState()
         break;
     case EndTouch:
         TouchState = NullTouch;
+        break;
+    default:
         break;
     }
     return state;
@@ -104,11 +105,6 @@ int HandleButton(ButtonId btnid, ButtonEvent evt)
     return 0;
 }
 
-void ToggleScreen()
-{
-    PrimaryScreen = ~PrimaryScreen & 0b1;
-}
-
 bool SaveState()
 {
     Savestate *state = new Savestate("db/savestate", true);
@@ -120,6 +116,34 @@ bool SaveState()
     NDS::DoSavestate(state);
     delete state;
     return true;
+}
+
+bool LoadState()
+{
+    // backup
+    Savestate *backup = new Savestate("db/savestate.backup", true);
+    NDS::DoSavestate(backup);
+    delete backup;
+
+    bool failed = false;
+
+    Savestate *state = new Savestate("db/savestate", false);
+    if (state->Error)
+    {
+        delete state;
+        // current state might be crapoed, so restore from sane backup
+        state = new Savestate("db/savestate.backup", false);
+        failed = true;
+        printf("savestate load was erroneous, restoring backup\n");
+    }
+    else
+    {
+        printf("restoring savestate\n");
+    }
+
+    NDS::DoSavestate(state);
+    delete state;
+    return !failed;
 }
 
 extern void reset_loop();

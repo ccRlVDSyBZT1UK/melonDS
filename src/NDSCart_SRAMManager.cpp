@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <time.h>
 #include "NDSCart_SRAMManager.h"
+#include "NDS.h"
 #include "Platform.h"
 
 namespace NDSCart_SRAMManager
@@ -34,7 +35,7 @@ namespace NDSCart_SRAMManager
     u8 *SecondaryBuffer;
     u32 SecondaryBufferLength;
 
-    time_t TimeAtLastFlushRequest;
+    u64 TimeAtLastFlushRequest;
 
     // We keep versions in case the user closes the application before
     // a flush cycle is finished.
@@ -79,10 +80,9 @@ namespace NDSCart_SRAMManager
 
     void RequestFlush()
     {
-        printf("NDS SRAM: Flush requested\n");
         memcpy(SecondaryBuffer, Buffer, Length);
         FlushVersion++;
-        TimeAtLastFlushRequest = time(NULL);
+        TimeAtLastFlushRequest = NDS::SysTimestamp;
     }
 
     void FlushSecondaryBuffer(u8 *dst, s32 dstLength)
@@ -94,6 +94,7 @@ namespace NDSCart_SRAMManager
         if (dst && dstLength < SecondaryBufferLength)
             return;
 
+        printf("Flushing SRAM at %llu, time at last flush request %llu\n", NDS::SysTimestamp, TimeAtLastFlushRequest);
         if (dst)
         {
             memcpy(dst, SecondaryBuffer, SecondaryBufferLength);
@@ -103,7 +104,6 @@ namespace NDSCart_SRAMManager
             FILE *f = Platform::OpenFile(Path, "wb");
             if (f)
             {
-                printf("NDS SRAM: Written\n");
                 fwrite(SecondaryBuffer, SecondaryBufferLength, 1, f);
                 fclose(f);
             }
@@ -114,7 +114,7 @@ namespace NDSCart_SRAMManager
 
     bool NeedsFlush()
     {
-        return FlushVersion != PreviousFlushVersion;
+        return TimeAtLastFlushRequest != 0 && 100 * (NDS::SysTimestamp - TimeAtLastFlushRequest) > 250000000;
     }
 
     void UpdateBuffer(u8 *src, s32 srcLength)

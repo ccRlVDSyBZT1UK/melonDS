@@ -12,25 +12,16 @@
     <link rel="apple-touch-icon" href="etc/logo192.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="etc/gameboy.css" type="text/css">
+    <link rel="stylesheet" href="etc/actions.css" type="text/css">
     <title>Game Boy</title>
   </head>
-  <body>
+  <body class="p-auto-dark-mode">
     <div id="screen-console" class="theme-gbc">
-
-      <div id="element-surround" class="element-surround">
-        <div id="surround" class="surround"></div>
-      </div>
-
       <div id="element-screen">
-        <div id="display">
-          <canvas id="canvas" width="256" height="192"></canvas>
+        <div id="surround" class="surround">
+          <canvas id="canvas" width="256" height="384"></canvas>
         </div>
       </div>
-
-      <div id="console-navigation-bar" class="navigation-bar console-navigation-bar">
-        <div id="button-game" class="navigation-button button-library button-right">Game</div>
-      </div>
-
       <div id="element-dpad">
         <div class="octagon">
           <div class="octagon-inner"></div>
@@ -42,7 +33,23 @@
           <div class="inner-circle-4"></div>
         </div>
       </div>
+      <div class="p-action-background">
+        <div class="p-action-big-container" id="actions_settings" data-p-close-on-outside="true">
+          <div class="p-action-container">
+            <a href="#" id="button-export-sram" class="p-action--intern p-action-neutral"  data-p-cancel-action="true">Export SRAM</a>
+            <a href="#" id="button-load-state" class="p-action--intern p-action-neutral"  data-p-cancel-action="true">Load State</a>
+            <a href="#" id="button-save-state" class="p-action--intern p-action-neutral"  data-p-cancel-action="true">Save State</a>
+            <a href="#" id="button-open-rom" class="p-action--intern"  data-p-cancel-action="true">Open ROM</a>
+          </div>
+          <div class="p-action-container">
+            <a href="#" class="p-action--intern p-action-cancel" data-p-cancel-action="true">Cancel</a>
+          </div>
+        </div>
+      </div>
       <div id="element-options">
+        <div id="element-settings-button" data-p-open-actions="#actions_settings" >
+          <svg id="settings-icon"  xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </div>  
         <div id="group-options">
           <div class="button-option-group" id="control-select">
             <div  class="button-option"></div>
@@ -52,11 +59,8 @@
             <div class="button-option"></div>
             <div class="button-label">Start</div>
           </div>
-          <div class="button-option-group" id="control-screen">
-            <div  class="button-option"></div>
-            <div class="button-label">Screen</div>
-          </div>
         </div>
+        <div id="element-settings-button"></div>
       </div>
       <div id="element-buttons">
         <div id="group-buttons">
@@ -68,6 +72,7 @@
       </div>
     </div>
     <input id='rominput' type='file' accept=".nds"/>
+    <script type="text/javascript" src="etc/actions.js"></script>
     <script type="text/javascript" src="etc/gameboy.js"></script>
     <script type='text/javascript'>
       var Module = {
@@ -83,15 +88,12 @@
             gameboy.SetupButton("control-y", 11);
             gameboy.SetupButton("control-start", 3);
             gameboy.SetupButton("control-select", 2);
-            gameboy.SetupMacro("control-screen", _ToggleScreen);
-            gameboy.SetupRomInput();
+            gameboy.SetupMacro("button-load-state", _LoadState);
+            gameboy.SetupMacro("button-save-state", _SaveState);
+            gameboy.SetupMacro("button-export-sram", gameboy.ExportSRAM);
+            gameboy.SetupOpenROM("button-open-rom");
             gameboy.SetupIDBFS();
           }, 
-          function() {
-            setInterval(function(){
-              _SaveState();
-            }, 10*1000);
-          }
         ],
         print: (function() {
           return function(text) {
