@@ -71,7 +71,6 @@ if (ENABLE_OGLRENDERER)
 endif()
 
 if (ENABLE_JIT)
-	enable_language(ASM)
 
 	target_sources(core PRIVATE
 		ARM_InstrInfo.cpp
@@ -82,7 +81,15 @@ if (ENABLE_JIT)
 		dolphin/CommonFuncs.cpp
 	)
 
+	if( ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+		target_sources(core PRIVATE
+		ARMJIT_WASM/ARMJIT_Compiler.cpp
+		ARMJIT_WASM/ARMJIT_Linkage.cpp
+		wasmblr/wasmblr.h
+	)
+	endif()
 	if (ARCHITECTURE STREQUAL x86_64)
+		enable_language(ASM)
 		target_sources(core PRIVATE
 			dolphin/x64ABI.cpp
 			dolphin/x64CPUDetect.cpp
@@ -97,6 +104,7 @@ if (ENABLE_JIT)
 		)
 	endif()
 	if (ARCHITECTURE STREQUAL ARM64)
+		enable_language(ASM)
 		target_sources(core PRIVATE
 			dolphin/Arm64Emitter.cpp
 			dolphin/MathUtil.cpp

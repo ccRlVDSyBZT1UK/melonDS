@@ -19,7 +19,9 @@
 #ifndef ARMJIT_COMPILER_H
 #define ARMJIT_COMPILER_H
 
-#if defined(__x86_64__)
+#if EMSCRIPTEN
+#include "ARMJIT_WASM/ARMJIT_Compiler.h"
+#elif defined(__x86_64__)
 #include "ARMJIT_x64/ARMJIT_Compiler.h"
 #elif defined(__aarch64__)
 #include "ARMJIT_A64/ARMJIT_Compiler.h"
@@ -29,7 +31,7 @@
 
 namespace ARMJIT
 {
-extern Compiler* JITCompiler;
+    extern Compiler *JITCompiler;
 }
 
 #endif

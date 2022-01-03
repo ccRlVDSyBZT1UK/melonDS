@@ -26,13 +26,13 @@
 
 inline u32 ROR(u32 x, u32 n)
 {
-    return (x >> (n&0x1F)) | (x << ((32-n)&0x1F));
+    return (x >> (n & 0x1F)) | (x << ((32 - n) & 0x1F));
 }
 
 enum
 {
-    RWFlags_Nonseq = (1<<5),
-    RWFlags_ForceUser = (1<<21),
+    RWFlags_Nonseq = (1 << 5),
+    RWFlags_ForceUser = (1 << 21),
 };
 
 const u32 ITCMPhysicalSize = 0x8000;
@@ -46,7 +46,7 @@ public:
 
     virtual void Reset();
 
-    virtual void DoSavestate(Savestate* file);
+    virtual void DoSavestate(Savestate *file);
 
     virtual void FillPipeline() = 0;
 
@@ -55,7 +55,8 @@ public:
 
     void Halt(u32 halt)
     {
-        if (halt==2 && Halted==1) return;
+        if (halt == 2 && Halted == 1)
+            return;
         Halted = halt;
     }
 
@@ -63,34 +64,45 @@ public:
 #ifdef JIT_ENABLED
     virtual void ExecuteJIT() = 0;
 #endif
+    virtual void handle() = 0;
 
     bool CheckCondition(u32 code)
     {
-        if (code == 0xE) return true;
-        if (ConditionTable[code] & (1 << (CPSR>>28))) return true;
+        if (code == 0xE)
+            return true;
+        if (ConditionTable[code] & (1 << (CPSR >> 28)))
+            return true;
         return false;
     }
 
     void SetC(bool c)
     {
-        if (c) CPSR |= 0x20000000;
-        else CPSR &= ~0x20000000;
+        if (c)
+            CPSR |= 0x20000000;
+        else
+            CPSR &= ~0x20000000;
     }
 
     void SetNZ(bool n, bool z)
     {
         CPSR &= ~0xC0000000;
-        if (n) CPSR |= 0x80000000;
-        if (z) CPSR |= 0x40000000;
+        if (n)
+            CPSR |= 0x80000000;
+        if (z)
+            CPSR |= 0x40000000;
     }
 
     void SetNZCV(bool n, bool z, bool c, bool v)
     {
         CPSR &= ~0xF0000000;
-        if (n) CPSR |= 0x80000000;
-        if (z) CPSR |= 0x40000000;
-        if (c) CPSR |= 0x20000000;
-        if (v) CPSR |= 0x10000000;
+        if (n)
+            CPSR |= 0x80000000;
+        if (z)
+            CPSR |= 0x40000000;
+        if (c)
+            CPSR |= 0x20000000;
+        if (v)
+            CPSR |= 0x10000000;
     }
 
     void UpdateMode(u32 oldmode, u32 newmode, bool phony = false);
@@ -99,11 +111,10 @@ public:
 
     void SetupCodeMem(u32 addr);
 
-
-    virtual void DataRead8(u32 addr, u32* val) = 0;
-    virtual void DataRead16(u32 addr, u32* val) = 0;
-    virtual void DataRead32(u32 addr, u32* val) = 0;
-    virtual void DataRead32S(u32 addr, u32* val) = 0;
+    virtual void DataRead8(u32 addr, u32 *val) = 0;
+    virtual void DataRead16(u32 addr, u32 *val) = 0;
+    virtual void DataRead32(u32 addr, u32 *val) = 0;
+    virtual void DataRead32S(u32 addr, u32 *val) = 0;
     virtual void DataWrite8(u32 addr, u8 val) = 0;
     virtual void DataWrite16(u32 addr, u16 val) = 0;
     virtual void DataWrite32(u32 addr, u32 val) = 0;
@@ -113,7 +124,6 @@ public:
     virtual void AddCycles_CI(s32 numI) = 0;
     virtual void AddCycles_CDI() = 0;
     virtual void AddCycles_CD() = 0;
-
 
     u32 Num;
 
@@ -151,7 +161,7 @@ public:
 
 #ifdef JIT_ENABLED
     u32 FastBlockLookupStart, FastBlockLookupSize;
-    u64* FastBlockLookup;
+    u64 *FastBlockLookup;
 #endif
 
     static u32 ConditionTable[16];
@@ -173,7 +183,7 @@ public:
 
     void Reset();
 
-    void DoSavestate(Savestate* file);
+    void DoSavestate(Savestate *file);
 
     void UpdateRegionTimings(u32 addrstart, u32 addrend);
 
@@ -188,14 +198,15 @@ public:
 #ifdef JIT_ENABLED
     void ExecuteJIT();
 #endif
+    void handle();
 
     // all code accesses are forced nonseq 32bit
     u32 CodeRead32(u32 addr, bool branch);
 
-    void DataRead8(u32 addr, u32* val);
-    void DataRead16(u32 addr, u32* val);
-    void DataRead32(u32 addr, u32* val);
-    void DataRead32S(u32 addr, u32* val);
+    void DataRead8(u32 addr, u32 *val);
+    void DataRead16(u32 addr, u32 *val);
+    void DataRead32(u32 addr, u32 *val);
+    void DataRead32S(u32 addr, u32 *val);
     void DataWrite8(u32 addr, u8 val);
     void DataWrite16(u32 addr, u16 val);
     void DataWrite32(u32 addr, u32 val);
@@ -223,7 +234,7 @@ public:
         s32 numD = DataCycles;
 
         //if (DataRegion != CodeRegion)
-            Cycles += std::max(numC + numD - 6, std::max(numC, numD));
+        Cycles += std::max(numC + numD - 6, std::max(numC, numD));
         //else
         //    Cycles += numC + numD;
     }
@@ -235,15 +246,15 @@ public:
         s32 numD = DataCycles;
 
         //if (DataRegion != CodeRegion)
-            Cycles += std::max(numC + numD - 6, std::max(numC, numD));
+        Cycles += std::max(numC + numD - 6, std::max(numC, numD));
         //else
         //    Cycles += numC + numD;
     }
 
-    void GetCodeMemRegion(u32 addr, NDS::MemRegion* region);
+    void GetCodeMemRegion(u32 addr, NDS::MemRegion *region);
 
     void CP15Reset();
-    void CP15DoSavestate(Savestate* file);
+    void CP15DoSavestate(Savestate *file);
 
     void UpdateDTCMSetting();
     void UpdateITCMSetting();
@@ -273,10 +284,10 @@ public:
     s32 RegionCodeCycles;
 
     u8 ITCM[ITCMPhysicalSize];
-    u8* DTCM;
+    u8 *DTCM;
 
     u8 ICache[0x2000];
-    u32 ICacheTags[64*4];
+    u32 ICacheTags[64 * 4];
     u8 ICacheCount[64];
 
     u32 PU_CodeCacheable;
@@ -294,14 +305,14 @@ public:
 
     // games operate under system mode, generally
     //#define PU_Map PU_PrivMap
-    u8* PU_Map;
+    u8 *PU_Map;
 
     // code/16N/32N/32S
     u8 MemTimings[0x100000][4];
 
-    u8* CurICacheLine;
+    u8 *CurICacheLine;
 
-    bool (*GetMemRegion)(u32 addr, bool write, NDS::MemRegion* region);
+    bool (*GetMemRegion)(u32 addr, bool write, NDS::MemRegion *region);
 };
 
 class ARMv4 : public ARM
@@ -319,6 +330,7 @@ public:
 #ifdef JIT_ENABLED
     void ExecuteJIT();
 #endif
+    void handle();
 
     u16 CodeRead16(u32 addr)
     {
@@ -330,14 +342,14 @@ public:
         return BusRead32(addr);
     }
 
-    void DataRead8(u32 addr, u32* val)
+    void DataRead8(u32 addr, u32 *val)
     {
         *val = BusRead8(addr);
         DataRegion = addr;
         DataCycles = NDS::ARM7MemTimings[addr >> 15][0];
     }
 
-    void DataRead16(u32 addr, u32* val)
+    void DataRead16(u32 addr, u32 *val)
     {
         addr &= ~1;
 
@@ -346,7 +358,7 @@ public:
         DataCycles = NDS::ARM7MemTimings[addr >> 15][0];
     }
 
-    void DataRead32(u32 addr, u32* val)
+    void DataRead32(u32 addr, u32 *val)
     {
         addr &= ~3;
 
@@ -355,7 +367,7 @@ public:
         DataCycles = NDS::ARM7MemTimings[addr >> 15][2];
     }
 
-    void DataRead32S(u32 addr, u32* val)
+    void DataRead32S(u32 addr, u32 *val)
     {
         addr &= ~3;
 
@@ -396,23 +408,22 @@ public:
         DataCycles += NDS::ARM7MemTimings[addr >> 15][3];
     }
 
-
     void AddCycles_C()
     {
         // code only. this code fetch is sequential.
-        Cycles += NDS::ARM7MemTimings[CodeCycles][(CPSR&0x20)?1:3];
+        Cycles += NDS::ARM7MemTimings[CodeCycles][(CPSR & 0x20) ? 1 : 3];
     }
 
     void AddCycles_CI(s32 num)
     {
         // code+internal. results in a nonseq code fetch.
-        Cycles += NDS::ARM7MemTimings[CodeCycles][(CPSR&0x20)?0:2] + num;
+        Cycles += NDS::ARM7MemTimings[CodeCycles][(CPSR & 0x20) ? 0 : 2] + num;
     }
 
     void AddCycles_CDI()
     {
         // LDR/LDM cycles.
-        s32 numC = NDS::ARM7MemTimings[CodeCycles][(CPSR&0x20)?0:2];
+        s32 numC = NDS::ARM7MemTimings[CodeCycles][(CPSR & 0x20) ? 0 : 2];
         s32 numD = DataCycles;
 
         if ((DataRegion >> 24) == 0x02) // mainRAM
@@ -439,7 +450,7 @@ public:
     void AddCycles_CD()
     {
         // TODO: max gain should be 5c when writing to mainRAM
-        s32 numC = NDS::ARM7MemTimings[CodeCycles][(CPSR&0x20)?0:2];
+        s32 numC = NDS::ARM7MemTimings[CodeCycles][(CPSR & 0x20) ? 0 : 2];
         s32 numD = DataCycles;
 
         if ((DataRegion >> 24) == 0x02)
@@ -463,16 +474,16 @@ public:
 namespace ARMInterpreter
 {
 
-void A_UNK(ARM* cpu);
-void T_UNK(ARM* cpu);
+    void A_UNK(ARM *cpu);
+    void T_UNK(ARM *cpu);
 
 }
 
 namespace NDS
 {
 
-extern ARMv5* ARM9;
-extern ARMv4* ARM7;
+    extern ARMv5 *ARM9;
+    extern ARMv4 *ARM7;
 
 }
 
